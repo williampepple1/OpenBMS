@@ -15,23 +15,20 @@ FetchContent_Declare(
     SOURCE_SUBDIR  simpleble
 )
 
+FetchContent_MakeAvailable(simpleble)
+
 # On Windows with MinGW, point SimpleBLE to the Windows SDK cppwinrt headers
-if(WIN32 AND MINGW)
+# and force C++20 (WinRT coroutines require it)
+if(WIN32 AND MINGW AND TARGET simpleble)
     file(GLOB _WIN_SDK_VERSIONS "C:/Program Files (x86)/Windows Kits/10/Include/10.*")
     list(SORT _WIN_SDK_VERSIONS ORDER DESCENDING)
     list(GET _WIN_SDK_VERSIONS 0 _WIN_SDK_INCLUDE)
     if(EXISTS "${_WIN_SDK_INCLUDE}/cppwinrt")
-        include_directories(SYSTEM "${_WIN_SDK_INCLUDE}/cppwinrt")
+        target_include_directories(simpleble SYSTEM PRIVATE "${_WIN_SDK_INCLUDE}/cppwinrt")
         message(STATUS "Using WinRT headers from: ${_WIN_SDK_INCLUDE}/cppwinrt")
     else()
         message(WARNING "Windows SDK cppwinrt headers not found — BLE will not build")
     endif()
-endif()
-
-FetchContent_MakeAvailable(simpleble)
-
-# SimpleBLE internally sets C++17, but WinRT headers require C++20 on MinGW
-if(WIN32 AND MINGW AND TARGET simpleble)
     set_target_properties(simpleble PROPERTIES CXX_STANDARD 20)
 endif()
 
@@ -43,6 +40,11 @@ qt_standard_project_setup(REQUIRES 6.8)
 qt_add_executable(appOpenBMS
     main.cpp
 )
+
+# Embed the application icon on Windows
+if(WIN32)
+    target_sources(appOpenBMS PRIVATE app.rc)
+endif()
 
 qt_add_qml_module(appOpenBMS
     URI OpenBMS
@@ -68,6 +70,11 @@ set_target_properties(appOpenBMS PROPERTIES
 target_link_libraries(appOpenBMS
     PRIVATE Qt6::Quick simpleble::simpleble
 )
+
+# WinRT runtime libraries needed by SimpleBLE on Windows
+if(WIN32)
+    target_link_libraries(appOpenBMS PRIVATE runtimeobject)
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS appOpenBMS

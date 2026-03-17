@@ -92,7 +92,7 @@ void BleManager::startScan()
         // Store peripheral object in main thread via queued signal
         {
             std::lock_guard<std::mutex> lock(m_peripheralsMutex);
-            for (const auto &existing : m_peripherals)
+            for (auto &existing : m_peripherals)
                 if (existing.address() == p.address())
                     return;
             m_peripherals.push_back(std::move(p));
@@ -285,7 +285,8 @@ void BleManager::setupBleConnection()
     try {
         p.notify(m_notifyServiceUuid, m_notifyCharUuid,
                  [this](SimpleBLE::ByteArray bytes) {
-                     QByteArray qba(bytes.data(), static_cast<int>(bytes.size()));
+                     QByteArray qba(reinterpret_cast<const char*>(bytes.data()),
+                                    static_cast<int>(bytes.size()));
                      emit bleDataReceived(qba);
                  });
     } catch (const std::exception &e) {
