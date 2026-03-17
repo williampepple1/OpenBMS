@@ -4,6 +4,8 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+    app.setApplicationName("OpenBMS");
+    app.setOrganizationName("OpenBMS");
 
     QQmlApplicationEngine engine;
     QObject::connect(

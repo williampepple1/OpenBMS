@@ -1,9 +1,41 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.21)
 
 project(OpenBMS VERSION 0.1 LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# --- SimpleBLE (cross-platform BLE library) ---
+include(FetchContent)
+FetchContent_Declare(
+    simpleble
+    GIT_REPOSITORY https://github.com/simpleble/simpleble.git
+    GIT_TAG        main
+    GIT_SHALLOW    TRUE
+    SOURCE_SUBDIR  simpleble
+)
+
+# On Windows with MinGW, point SimpleBLE to the Windows SDK cppwinrt headers
+if(WIN32 AND MINGW)
+    file(GLOB _WIN_SDK_VERSIONS "C:/Program Files (x86)/Windows Kits/10/Include/10.*")
+    list(SORT _WIN_SDK_VERSIONS ORDER DESCENDING)
+    list(GET _WIN_SDK_VERSIONS 0 _WIN_SDK_INCLUDE)
+    if(EXISTS "${_WIN_SDK_INCLUDE}/cppwinrt")
+        include_directories(SYSTEM "${_WIN_SDK_INCLUDE}/cppwinrt")
+        message(STATUS "Using WinRT headers from: ${_WIN_SDK_INCLUDE}/cppwinrt")
+    else()
+        message(WARNING "Windows SDK cppwinrt headers not found — BLE will not build")
+    endif()
+endif()
+
+FetchContent_MakeAvailable(simpleble)
+
+# SimpleBLE internally sets C++17, but WinRT headers require C++20 on MinGW
+if(WIN32 AND MINGW AND TARGET simpleble)
+    set_target_properties(simpleble PROPERTIES CXX_STANDARD 20)
+endif()
+
+# --- Qt ---
 find_package(Qt6 REQUIRED COMPONENTS Quick)
 
 qt_standard_project_setup(REQUIRES 6.8)
@@ -16,11 +48,15 @@ qt_add_qml_module(appOpenBMS
     URI OpenBMS
     QML_FILES
         Main.qml
+        ScanPage.qml
+        DashboardPage.qml
+        CellBar.qml
+        StatCard.qml
+    SOURCES
+        blemanager.h blemanager.cpp
+        bmsdata.h
 )
 
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
 set_target_properties(appOpenBMS PROPERTIES
 #    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.appOpenBMS
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
@@ -30,7 +66,7 @@ set_target_properties(appOpenBMS PROPERTIES
 )
 
 target_link_libraries(appOpenBMS
-    PRIVATE Qt6::Quick
+    PRIVATE Qt6::Quick simpleble::simpleble
 )
 
 include(GNUInstallDirs)
