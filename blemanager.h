@@ -49,14 +49,14 @@ signals:
     void deviceFoundInternal(QString name, QString address, int rssi);
     void scanStoppedInternal();
     void bleDataReceived(QByteArray data);
-    void connectionResult(bool success, QString error);
+    void connectionResult(bool success, QString error, SimpleBLE::Peripheral *peripheralPtr);
     void peerDisconnected();
 
 private slots:
     void onDeviceFound(const QString &name, const QString &address, int rssi);
     void onScanStopped();
     void onBleDataReceived(const QByteArray &data);
-    void onConnectionResult(bool success, const QString &error);
+    void onConnectionResult(bool success, const QString &error, SimpleBLE::Peripheral *peripheralPtr);
     void onPeerDisconnected();
 
 private:

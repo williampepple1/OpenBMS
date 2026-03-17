@@ -161,31 +161,38 @@ void BleManager::connectToDevice(int index)
     m_data->setDeviceName(name);
     setStatusText("Connecting to " + name + "...");
 
-    // Connect in background thread — SimpleBLE::connect() blocks
+    // Connect in background thread — SimpleBLE::connect() blocks.
+    // m_connectedPeripheral is only assigned after a successful connect,
+    // inside onConnectionResult, to avoid a data race.
     std::thread([this, peripheral]() mutable {
         try {
             peripheral.connect();
-            emit connectionResult(true, QString());
 
             peripheral.set_callback_on_disconnected([this]() {
                 emit peerDisconnected();
             });
 
+            // Marshal the connected peripheral back to the main thread via
+            // a shared_ptr so onConnectionResult can safely store it.
+            auto *heap = new SimpleBLE::Peripheral(std::move(peripheral));
+            emit connectionResult(true, QString(), heap);
+
         } catch (const std::exception &e) {
-            emit connectionResult(false, QString::fromStdString(e.what()));
+            emit connectionResult(false, QString::fromStdString(e.what()), nullptr);
         } catch (...) {
-            emit connectionResult(false, "Unknown connection error");
+            emit connectionResult(false, "Unknown connection error", nullptr);
         }
     }).detach();
-
-    m_connectedPeripheral = peripheral;
 }
 
-void BleManager::onConnectionResult(bool success, const QString &error)
+void BleManager::onConnectionResult(bool success, const QString &error, SimpleBLE::Peripheral *peripheralPtr)
 {
-    if (success) {
+    if (success && peripheralPtr) {
+        m_connectedPeripheral = std::move(*peripheralPtr);
+        delete peripheralPtr;
         setupBleConnection();
     } else {
+        delete peripheralPtr;
         setStatusText("Connection failed: " + error);
         m_connectedPeripheral.reset();
     }
