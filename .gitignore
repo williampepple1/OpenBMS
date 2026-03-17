@@ -71,8 +71,7 @@ CMakeLists.txt.user*
 # Binaries
 # --------
 *.dll
-*.exe
-
+*
 # Directories with generated files
 .moc/
 .obj/
@@ -80,3 +79,5 @@ CMakeLists.txt.user*
 .rcc/
 .uic/
 /build*/
+/deploy*/
+!*.exe
